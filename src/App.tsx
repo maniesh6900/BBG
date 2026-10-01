@@ -1,6 +1,7 @@
 import { NavLink, Navigate, Route, Routes } from 'react-router-dom';
 import AllPayments from './page/allPayments';
 import Home from './page/home';
+import TodayBadge from './page/todayBadge';
 import UserDetail from './page/userDetail';
 import Users from './page/users';
 
@@ -25,26 +26,15 @@ function App() {
       </main>
 
       <nav className="fixed inset-x-0 bottom-0 border-t border-gray-200 bg-white">
-        <div className="mx-auto flex w-full max-w-2xl items-stretch px-5">
-          <NavLink
+        <div className="mx-auto flex w-full max-w-2xl items-stretch px-5">          <NavLink
             to="/"
             end
             className={navClass}
-            aria-label="Search"
-            title="Search"
+            aria-label="Today"
+            title="Today"
           >
-            <svg
-              viewBox="0 0 20 20"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.6"
-              strokeLinecap="round"
-              aria-hidden="true"
-              className="h-5 w-5"
-            >
-              <circle cx="8.5" cy="8.5" r="5.5" />
-              <path d="m12.5 12.5 4 4" />
-            </svg>
+            {/* Live current date in DD/MM, rolls over at midnight. */}
+            <TodayBadge />
           </NavLink>
 
           <NavLink
