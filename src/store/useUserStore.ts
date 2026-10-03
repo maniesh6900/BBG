@@ -5,10 +5,13 @@ export interface UserProfile {
   id: string;
   username: string;
   phone_number: string;
+  gender: string | null;
   created_at: string;
 }
 
-export type NewUserProfile = Pick<UserProfile, 'username' | 'phone_number'>;
+export type NewUserProfile = Pick<UserProfile, 'username' | 'phone_number'> & {
+  gender: string;
+};
 
 type Status = 'idle' | 'loading' | 'success' | 'error';
 
@@ -22,7 +25,7 @@ interface UserState {
   createUser: () => Promise<UserProfile | null>;
 }
 
-const emptyProfile: NewUserProfile = { username: '', phone_number: '' };
+const emptyProfile: NewUserProfile = { username: '', phone_number: '', gender: '' };
 
 export const useUserStore = create<UserState>((set, get) => ({
   profile: { ...emptyProfile },
@@ -36,14 +39,18 @@ export const useUserStore = create<UserState>((set, get) => ({
     set({ profile: { ...emptyProfile }, status: 'idle', error: null }),
 
   createUser: async (): Promise<UserProfile | null> => {
-    const { username, phone_number } = get().profile;
+    const { username, phone_number, gender } = get().profile;
     const newUser = {
       username: username.trim(),
       phone_number: phone_number.trim(),
+      gender: gender.trim(),
     };
 
-    if (!newUser.username || !newUser.phone_number) {
-      set({ status: 'error', error: 'Username and phone number are required' });
+    if (!newUser.username || !newUser.phone_number || !newUser.gender) {
+      set({
+        status: 'error',
+        error: 'Username, phone number, and gender are required',
+      });
       return null;
     }
 

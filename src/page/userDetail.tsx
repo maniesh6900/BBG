@@ -63,6 +63,10 @@ function UserDetail() {
             <dt className="text-gray-500">Phone number</dt>
             <dd>{profile.phone_number}</dd>
           </div>
+          <div className="flex justify-between px-4 py-3">
+            <dt className="text-gray-500">Gender</dt>
+            <dd>{profile.gender ?? '—'}</dd>
+          </div>
         </dl>
 
         <BackLink />

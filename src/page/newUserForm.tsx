@@ -2,7 +2,12 @@ import { useNavigate } from 'react-router-dom';
 import { useUserStore } from '../store/useUserStore';
 import type { FormEvent } from 'react';
 
-function NewUserForm() {
+interface NewUserFormProps {
+  /** Optional escape hatch instead of navigating (e.g. inside a modal). */
+  onClose?: () => void;
+}
+
+function NewUserForm({ onClose }: NewUserFormProps) {
   const profile = useUserStore((state) => state.profile);
   const status = useUserStore((state) => state.status);
   const error = useUserStore((state) => state.error);
@@ -16,10 +21,16 @@ function NewUserForm() {
 
     const created = await createUser();
 
-    // Jump straight to the new user's profile.
-    if (created) {
-      navigate(`/user/${created.id}`);
+    if (!created) return;
+
+    // Inside a modal, just close it — the list is already visible behind it.
+    if (onClose) {
+      onClose();
+      return;
     }
+
+    // Jump straight to the new user's profile.
+    navigate(`/user/${created.id}`);
   }
 
   return (
@@ -31,7 +42,7 @@ function NewUserForm() {
 
       <input
         type="text"
-        placeholder="Username"
+        placeholder="full name"
         value={profile.username}
         onChange={(event) => setField('username', event.target.value)}
         required
@@ -45,6 +56,22 @@ function NewUserForm() {
         required
         className="rounded-md border border-gray-300 px-3 py-2 outline-none focus:border-blue-500"
       />
+      <select
+        value={profile.gender}
+        onChange={(event) => setField('gender', event.target.value)}
+        required
+        aria-label="Gender"
+        className={`rounded-md border border-gray-300 bg-white px-3 py-2 outline-none focus:border-blue-500 ${
+          profile.gender === '' ? 'text-gray-500' : 'text-gray-900'
+        }`}
+      >
+        <option value="" disabled>
+          Gender…
+        </option>
+        <option value="Male">Male</option>
+        <option value="Female">Female</option>
+        <option value="Other">Other</option>
+      </select>
       <button
         type="submit"
         disabled={status === 'loading'}
@@ -54,11 +81,6 @@ function NewUserForm() {
       </button>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
-      {status === 'success' && (
-        <p className="text-sm text-green-700">
-          User created. Search above to find them.
-        </p>
-      )}
     </form>
   );
 }

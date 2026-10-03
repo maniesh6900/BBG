@@ -1,5 +1,6 @@
 import { NavLink, Navigate, Route, Routes } from 'react-router-dom';
 import AllPayments from './page/allPayments';
+import Dashboard from './page/dashboard';
 import Home from './page/home';
 import TodayBadge from './page/todayBadge';
 import UserDetail from './page/userDetail';
@@ -18,6 +19,7 @@ function App() {
       <main className="mx-auto w-full max-w-2xl px-5 py-8 pb-24">
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/users" element={<Users />} />
           <Route path="/payments" element={<AllPayments />} />
           <Route path="/user/:id" element={<UserDetail />} />
@@ -56,6 +58,29 @@ function App() {
               <path d="M2 16c.8-2.7 2.6-4 5-4s4.2 1.3 5 4" />
               <path d="M13 4.7a2.5 2.5 0 0 1 0 4.6" />
               <path d="M14.5 12.3c1.7.5 2.9 1.7 3.5 3.7" />
+            </svg>
+          </NavLink>
+
+          <NavLink
+            to="/dashboard"
+            className={navClass}
+            aria-label="Dashboard"
+            title="Dashboard"
+          >
+            <svg
+              viewBox="0 0 20 20"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+              className="h-5 w-5"
+            >
+              <rect x="3" y="3" width="6" height="6" rx="1" />
+              <rect x="11" y="3" width="6" height="6" rx="1" />
+              <rect x="3" y="11" width="6" height="6" rx="1" />
+              <path d="M11 17v-6M14 17v-3M17 17V8" />
             </svg>
           </NavLink>
 

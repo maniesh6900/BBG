@@ -9,8 +9,8 @@ import { useDebounce } from '../lib/useDebounce';
 import { supabase } from '../lib/useUserSupabase';
 import NewUserForm from './newUserForm';
 
-const DEBOUNCE_MS = 1000;
-const RESULT_LIMIT = 20;
+const DEBOUNCE_MS = 300;
+const RESULT_LIMIT = 200;
 
 interface PaymentRow {
   id: number;
@@ -84,91 +84,134 @@ function Users() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<UserResult[]>([]);
+  const [allUsers, setAllUsers] = useState<UserResult[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [loadedTerm, setLoadedTerm] = useState('');
+  // Bumped after adding a user so the list picks them up.
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const debouncedQuery = useDebounce(query, DEBOUNCE_MS);
 
-  // Closing the bar discards the term immediately, so stale results and the
-  // debounce timer never linger behind a collapsed search.
-  const term = searchOpen ? debouncedQuery.trim() : '';
+  // Closing the bar discards the term immediately, so stale results never
+  // linger behind a collapsed search.
+  const term = searchOpen ? debouncedQuery.trim().toLowerCase() : '';
   const hasTerm = term !== '';
-  // Waiting on the debounce timer.
+  // Waiting on the debounce timer before filtering.
   const pending = searchOpen && query !== debouncedQuery;
-  // Debounce settled, but these results are still for an older term.
-  const searching = hasTerm && term !== loadedTerm;
 
   useEffect(() => {
-    if (!term) return;
-
     let active = true;
 
-    async function search() {
+    async function load() {
       const { data, error } = await supabase
         .from('users')
         .select(
           'id, username, phone_number, payment(created_at, id, payed_by, amount)',
         )
-        .ilike('username', `%${term}%`)
+        .order('username', { ascending: true })
         .limit(RESULT_LIMIT);
 
       if (!active) return;
 
-      setLoadedTerm(term);
-
       if (error) {
         setError(error.message);
+        setAllUsers([]);
         return;
       }
 
-      setError(null);
-      setResults(((data ?? []) as UserRow[]).map(toResult));
+      setAllUsers(((data ?? []) as UserRow[]).map(toResult));
     }
 
-    search();
+    load();
 
     return () => {
       active = false;
     };
-  }, [term]);
+  }, [refreshKey]);
+
+  // Filtering stays local: one fetch on mount, debounced client-side search.
+  const visible = !pending && hasTerm
+    ? (allUsers ?? []).filter(
+        (user) =>
+          user.username.toLowerCase().includes(term) ||
+          user.phone_number.toLowerCase().includes(term),
+      )
+    : (allUsers ?? []);
 
   function closeSearch() {
     setQuery('');
     setSearchOpen(false);
   }
 
-  const settled = hasTerm && !searching;
-  const showResults = settled && !error && results.length > 0;
-  const showNoMatch = settled && !error && results.length === 0;
+  const loading = allUsers === null;
+  const showList = !loading && !error;
+  const showResults = showList && visible.length > 0;
+  const showNoMatch = showList && visible.length === 0;
 
   return (
     <div>
-      {searchOpen ? (
-        <div className="flex items-center gap-2">
-          <input
-            type="search"
-            autoFocus
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search users by username…"
-            aria-label="Search users by username"
-            className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-base outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-          />
+      {/* Top row: search on the left, add-user in the corner on the right. */}
+      <div className="flex items-center gap-2">
+        {searchOpen ? (
+          <>
+            <input
+              type="search"
+              autoFocus
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search users by username…"
+              aria-label="Search users by username"
+              className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-base outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            />
 
+            <button
+              type="button"
+              onClick={closeSearch}
+              aria-label="Close search"
+              title="Close search"
+              className="shrink-0 rounded-lg border border-gray-300 bg-white p-3 text-gray-500 transition hover:border-gray-400 hover:text-gray-900"
+            >
+              <svg
+                viewBox="0 0 20 20"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+                aria-hidden="true"
+                className="h-5 w-5"
+              >
+                <path d="m5.5 5.5 9 9M14.5 5.5l-9 9" />
+              </svg>
+            </button>
+          </>
+        ) : (
           <button
             type="button"
-            onClick={closeSearch}
-            className="shrink-0 rounded-lg px-2 py-3 text-sm font-medium text-gray-500 transition hover:text-gray-900"
+            onClick={() => setSearchOpen(true)}
+            className="flex w-full items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-3 text-left text-gray-500 transition hover:border-gray-400 hover:text-gray-700"
           >
-            Cancel
+            <svg
+              viewBox="0 0 20 20"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              aria-hidden="true"
+              className="h-4 w-4 shrink-0"
+            >
+              <circle cx="8.5" cy="8.5" r="5.5" />
+              <path d="m12.5 12.5 4 4" />
+            </svg>
+            Search users
           </button>
-        </div>
-      ) : (
+        )}
+
+        {/* Upper-corner add-user button with a user-plus icon. */}
         <button
           type="button"
-          onClick={() => setSearchOpen(true)}
-          className="flex w-full items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-3 text-left text-gray-500 transition hover:border-gray-400 hover:text-gray-700"
+          onClick={() => setAddOpen(true)}
+          aria-label="Add user"
+          title="Add user"
+          className="shrink-0 rounded-lg bg-blue-600 p-3.5 text-white transition hover:bg-blue-700 active:scale-95"
         >
           <svg
             viewBox="0 0 20 20"
@@ -176,31 +219,34 @@ function Users() {
             stroke="currentColor"
             strokeWidth="1.6"
             strokeLinecap="round"
+            strokeLinejoin="round"
             aria-hidden="true"
-            className="h-4 w-4 shrink-0"
+            className="h-5 w-5"
           >
-            <circle cx="8.5" cy="8.5" r="5.5" />
-            <path d="m12.5 12.5 4 4" />
+            <circle cx="8" cy="7.5" r="2.8" />
+            <path d="M3 16.5c.9-3 2.8-4.5 5-4.5 1 0 1.9.3 2.7.8" />
+            <path d="M15.5 11.5v5M13 14h5" />
           </svg>
-          Search users
         </button>
+      </div>
+
+      {loading && (
+        <p className="mt-2 text-sm text-gray-500">Loading users…</p>
       )}
 
-      {searchOpen && (
-        <p className="mt-2 h-5 text-sm text-gray-500">
-          {pending ? 'Typing…' : searching ? 'Searching…' : ''}
+      {!loading && error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+
+      {showNoMatch && (
+        <p className="mt-2 text-sm text-gray-500">
+          {hasTerm
+            ? `No users match “${term}”.`
+            : 'No users yet. Add the first one with the + button above.'}
         </p>
       )}
 
-      {settled && error && <p className="text-sm text-red-600">{error}</p>}
-
-      {showNoMatch && (
-        <p className="text-sm text-gray-500">No users match “{term}”.</p>
-      )}
-
       {showResults && (
-        <ul className="divide-y divide-gray-200 overflow-hidden rounded-lg border border-gray-200 bg-white">
-          {results.map((user) => (
+        <ul className="mt-2 divide-y divide-gray-200 overflow-hidden rounded-lg border border-gray-200 bg-white">
+          {visible.map((user) => (
             <li key={user.id}>
               <Link
                 to={`/user/${user.id}`}
@@ -236,29 +282,32 @@ function Users() {
         </ul>
       )}
 
-      {!hasTerm && (
-        <button
-          type="button"
-          onClick={() => setAddOpen((open) => !open)}
-          aria-expanded={addOpen}
-          className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-700"
+      {addOpen && (
+        <div
+          className="fixed inset-0 z-20 flex items-end justify-center bg-black/30 p-4 sm:items-center"
+          onClick={() => setAddOpen(false)}
         >
-          <svg
-            viewBox="0 0 20 20"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-            aria-hidden="true"
-            className="h-4 w-4 shrink-0"
+          <div
+            className="relative w-full max-w-sm"
+            onClick={(event) => event.stopPropagation()}
           >
-            <path d="M10 4.5v11M4.5 10h11" />
-          </svg>
-          {addOpen ? 'Hide form' : 'Add user'}
-        </button>
+            <button
+              type="button"
+              onClick={() => setAddOpen(false)}
+              aria-label="Close"
+              className="absolute -top-2 right-0 -translate-y-full rounded-full bg-white/90 px-2 py-1 text-sm font-medium text-gray-600 shadow transition hover:text-gray-900"
+            >
+              Close
+            </button>
+            <NewUserForm
+              onClose={() => {
+                setAddOpen(false);
+                setRefreshKey((key) => key + 1);
+              }}
+            />
+          </div>
+        </div>
       )}
-
-      {!hasTerm && addOpen && <NewUserForm />}
     </div>
   );
 }
