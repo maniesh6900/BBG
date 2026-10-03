@@ -18,6 +18,8 @@ type Status = 'idle' | 'loading' | 'success' | 'error';
 
 interface PaymentState {
   payments: Payment[];
+  /** Which user the loaded payments belong to. */
+  paymentsUserId: string | null;
   status: Status;
   error: string | null;
   /** When the user may next pay, or null if they have never paid. */
@@ -25,12 +27,17 @@ interface PaymentState {
   /** Whether the latest payment's coverage has elapsed and a new one may be recorded. */
   canPay: boolean;
   loadPayments: (userId: string) => Promise<void>;
-  /** Records a payment of the given amount (600 = 1 month, 1500 = 3 months). */
-  createPayment: (userId: string, amount: number) => Promise<void>;
+  /**
+   * Records a payment of the given amount (600 = 1 month, 1500 = 3 months).
+   * Returns true when the payment was saved; the payment_amount_sync trigger
+   * adds the amount to the user's total_amount in the database.
+   */
+  createPayment: (userId: string, amount: number) => Promise<boolean>;
 }
 
 export const usePaymentStore = create<PaymentState>((set) => ({
   payments: [],
+  paymentsUserId: null,
   status: 'idle',
   error: null,
   nextPaymentAt: null,
@@ -39,6 +46,7 @@ export const usePaymentStore = create<PaymentState>((set) => ({
   loadPayments: async (userId) => {
     set({
       payments: [],
+      paymentsUserId: userId,
       status: 'loading',
       error: null,
       nextPaymentAt: null,
@@ -80,7 +88,7 @@ export const usePaymentStore = create<PaymentState>((set) => ({
 
     if (latestError) {
       set({ status: 'error', error: latestError.message });
-      return;
+      return false;
     }
 
     const previous = latest?.[0];
@@ -96,7 +104,7 @@ export const usePaymentStore = create<PaymentState>((set) => ({
         nextPaymentAt: next,
         canPay: false,
       });
-      return;
+      return false;
     }
 
     const { data, error } = await supabase
@@ -107,7 +115,7 @@ export const usePaymentStore = create<PaymentState>((set) => ({
 
     if (error) {
       set({ status: 'error', error: error.message });
-      return;
+      return false;
     }
 
     const payment = normalizePayment(data);
@@ -119,6 +127,8 @@ export const usePaymentStore = create<PaymentState>((set) => ({
       canPay: isDue(createdNext),
       status: 'success',
     }));
+
+    return true;
   },
 }));
 

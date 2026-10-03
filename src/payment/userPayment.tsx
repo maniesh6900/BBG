@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { PLANS, monthsForAmount, totalPaid } from '../lib/payments';
+import { PLANS, monthsForAmount } from '../lib/payments';
 import { usePaymentStore } from '../store/usePaymentStore';
 
 interface UserPaymentProps {
@@ -28,27 +28,17 @@ function UserPayment({ userId }: UserPaymentProps) {
     setChoosing(true);
   }
 
-  // Picking a plan records the payment immediately.
+  // Picking a plan records the payment immediately. The store prepends the
+  // new payment on success, so totals computed from it update live.
   async function handleChoose(price: number) {
     await createPayment(userId, price);
     setChoosing(false);
   }
 
-  const total = totalPaid(payments.map((payment) => payment.amount));
-
   return (
     <div>
       <div className="mb-2 flex items-center justify-between">
-        <h2 className="font-medium">
-          Payments{' '}
-          <span className="text-sm font-normal text-gray-500">
-            ({payments.length} · paid{' '}
-            {total.toLocaleString(undefined, {
-              maximumFractionDigits: 2,
-            })}
-            )
-          </span>
-        </h2>
+        <h2 className="font-medium">Payments</h2>
 
         {canPay ? (
           choosing ? (

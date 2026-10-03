@@ -1,6 +1,11 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { isValidPhone } from '../lib/phone';
 import { useUserStore } from '../store/useUserStore';
 import type { FormEvent } from 'react';
+
+const PHONE_ERROR =
+  'Enter a valid phone number: 7-15 digits, optionally starting with +';
 
 interface NewUserFormProps {
   /** Optional escape hatch instead of navigating (e.g. inside a modal). */
@@ -16,12 +21,28 @@ function NewUserForm({ onClose }: NewUserFormProps) {
 
   const navigate = useNavigate();
 
+  // Shown under the phone field before submit is ever sent.
+  const [phoneError, setPhoneError] = useState<string | null>(null);
+
+  function handlePhoneChange(value: string) {
+    setField('phone_number', value);
+    setPhoneError(null);
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    // Block the request early on an invalid number.
+    if (!isValidPhone(profile.phone_number)) {
+      setPhoneError(PHONE_ERROR);
+      return;
+    }
 
     const created = await createUser();
 
     if (!created) return;
+
+    setPhoneError(null);
 
     // Inside a modal, just close it — the list is already visible behind it.
     if (onClose) {
@@ -50,12 +71,17 @@ function NewUserForm({ onClose }: NewUserFormProps) {
       />
       <input
         type="tel"
+        inputMode="tel"
         placeholder="Phone number"
         value={profile.phone_number}
-        onChange={(event) => setField('phone_number', event.target.value)}
+        onChange={(event) => handlePhoneChange(event.target.value)}
         required
-        className="rounded-md border border-gray-300 px-3 py-2 outline-none focus:border-blue-500"
+        aria-invalid={phoneError ? true : undefined}
+        className={`rounded-md border px-3 py-2 outline-none focus:border-blue-500 ${
+          phoneError ? 'border-red-400' : 'border-gray-300'
+        }`}
       />
+      {phoneError && <p className="text-sm text-red-600">{phoneError}</p>}
       <select
         value={profile.gender}
         onChange={(event) => setField('gender', event.target.value)}
