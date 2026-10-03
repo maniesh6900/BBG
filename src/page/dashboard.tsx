@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { PLANS, isDue, nextPaymentDate, totalPaid } from '../lib/payments';
 import { supabase } from '../lib/useUserSupabase';
 
-const MAX_ROWS = 500;
+const PAGE_SIZE = 500;
 
 interface PaymentRow {
   id: number;
@@ -33,15 +33,23 @@ interface DashboardData {
 }
 
 async function loadDashboard(): Promise<DashboardData> {
-  const { data, error } = await supabase
-    .from('users')
-    .select('id, username, gender, payment(created_at, id, payed_by, amount)')
-    .order('username', { ascending: true })
-    .limit(MAX_ROWS);
+  const rows: UserRow[] = [];
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from('users')
+      .select('id, username, gender, payment(created_at, id, payed_by, amount)')
+      .order('username', { ascending: true })
+      .order('id', { ascending: true })
+      .range(from, from + PAGE_SIZE - 1);
 
-  if (error) throw error;
+    if (error) throw error;
 
-  const users = ((data ?? []) as UserRow[]).map((row) => {
+    const page = (data ?? []) as UserRow[];
+    rows.push(...page);
+    if (page.length < PAGE_SIZE) break;
+  }
+
+  const users = rows.map((row) => {
     const payments = (row.payment ?? []).map((p) => ({
       created_at: p.created_at,
       amount: Number(p.amount),
@@ -285,7 +293,7 @@ function DashboardBody({ data }: { data: DashboardData }) {
 
       <section>
         <h2 className="mb-2 text-sm font-medium text-gray-900">By gender</h2>
-        {stats.genderCounts.length === 0 ? (
+        {stats.genderCounts.length === 0 && stats.unspecifiedGender === 0 ? (
           <p className="text-sm text-gray-500">No gender data yet.</p>
         ) : (
           <div className="flex flex-wrap gap-2">

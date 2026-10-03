@@ -25,7 +25,7 @@ function UserDetail() {
   // of truth for the Total paid row.
   const payments = usePaymentStore((state) => state.payments);
   const paymentsUserId = usePaymentStore((state) => state.paymentsUserId);
-  const paymentsStatus = usePaymentStore((state) => state.status);
+  const paymentsLoaded = usePaymentStore((state) => state.paymentsLoaded);
 
   useEffect(() => {
     if (!id) return;
@@ -69,10 +69,9 @@ function UserDetail() {
     return <p className="text-sm text-gray-500">Loading…</p>;
   }
 
-  // Sum the loaded payment rows when they belong to this user; while they are
-  // still loading, fall back to the DB-maintained total_amount column.
+  // Sum loaded payment rows; fall back to the DB total until loading succeeds.
   const totalPaidDisplay =
-    paymentsUserId === profile.id && paymentsStatus !== 'loading'
+    paymentsUserId === profile.id && paymentsLoaded
       ? totalPaid(payments.map((payment) => payment.amount))
       : Number(profile.total_amount ?? 0);
 

@@ -148,22 +148,20 @@ export const useUserStore = create<UserState>((set, get) => ({
   deleteUser: async (id): Promise<boolean> => {
     set({ deleteStatus: 'loading', deleteError: null });
 
-    // Remove the user's payments first so the delete succeeds even when the
-    // schema has no ON DELETE cascade on payed_by.
-    const { error: paymentsError } = await supabase
-      .from('payment')
-      .delete()
-      .eq('payed_by', id);
-
-    if (paymentsError) {
-      set({ deleteStatus: 'error', deleteError: paymentsError.message });
-      return false;
-    }
-
-    const { error } = await supabase.from('users').delete().eq('id', id);
+    const { data: deletedUsers, error } = await supabase.rpc('delete_user', {
+      user_id: id,
+    });
 
     if (error) {
       set({ deleteStatus: 'error', deleteError: error.message });
+      return false;
+    }
+
+    if (deletedUsers !== 1) {
+      set({
+        deleteStatus: 'error',
+        deleteError: `Expected to delete exactly one user, but deleted ${deletedUsers ?? 0}.`,
+      });
       return false;
     }
 

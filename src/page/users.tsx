@@ -10,7 +10,7 @@ import { supabase } from '../lib/useUserSupabase';
 import NewUserForm from './newUserForm';
 
 const DEBOUNCE_MS = 300;
-const RESULT_LIMIT = 200;
+const PAGE_SIZE = 200;
 
 interface PaymentRow {
   id: number;
@@ -102,23 +102,39 @@ function Users() {
     let active = true;
 
     async function load() {
-      const { data, error } = await supabase
-        .from('users')
-        .select(
-          'id, username, phone_number, payment(created_at, id, payed_by, amount)',
-        )
-        .order('username', { ascending: true })
-        .limit(RESULT_LIMIT);
+      const rows: UserRow[] = [];
+      let fetchError: Error | null = null;
+
+      for (let from = 0; ; from += PAGE_SIZE) {
+        const { data, error } = await supabase
+          .from('users')
+          .select(
+            'id, username, phone_number, payment(created_at, id, payed_by, amount)',
+          )
+          .order('username', { ascending: true })
+          .order('id', { ascending: true })
+          .range(from, from + PAGE_SIZE - 1);
+
+        if (error) {
+          fetchError = error;
+          break;
+        }
+
+        const page = (data ?? []) as UserRow[];
+        rows.push(...page);
+        if (page.length < PAGE_SIZE) break;
+      }
 
       if (!active) return;
 
-      if (error) {
-        setError(error.message);
+      if (fetchError) {
+        setError(fetchError.message);
         setAllUsers([]);
         return;
       }
 
-      setAllUsers(((data ?? []) as UserRow[]).map(toResult));
+      setError(null);
+      setAllUsers(rows.map(toResult));
     }
 
     load();

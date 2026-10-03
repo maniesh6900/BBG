@@ -20,6 +20,8 @@ interface PaymentState {
   payments: Payment[];
   /** Which user the loaded payments belong to. */
   paymentsUserId: string | null;
+  /** Whether payments were successfully loaded for the current user. */
+  paymentsLoaded: boolean;
   status: Status;
   error: string | null;
   /** When the user may next pay, or null if they have never paid. */
@@ -38,6 +40,7 @@ interface PaymentState {
 export const usePaymentStore = create<PaymentState>((set) => ({
   payments: [],
   paymentsUserId: null,
+  paymentsLoaded: false,
   status: 'idle',
   error: null,
   nextPaymentAt: null,
@@ -47,6 +50,7 @@ export const usePaymentStore = create<PaymentState>((set) => ({
     set({
       payments: [],
       paymentsUserId: userId,
+      paymentsLoaded: false,
       status: 'loading',
       error: null,
       nextPaymentAt: null,
@@ -71,6 +75,7 @@ export const usePaymentStore = create<PaymentState>((set) => ({
       payments,
       nextPaymentAt: next,
       canPay: isDue(next),
+      paymentsLoaded: true,
       status: 'idle',
     });
   },
